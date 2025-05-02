@@ -82,3 +82,5 @@ MIT License.
 
 This API is lightweight and ready for future improvements like authentication, notifications, or reporting tools.
 
+Link to the UI repo : https://github.com/Degbogueur/JobTrackingUI
+
