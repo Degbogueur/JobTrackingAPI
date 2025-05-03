@@ -10,10 +10,12 @@ namespace JobTrackingAPI.Services;
 
 public class ApplicationService(
     IApplicationRepository applicationRepository,
-    IFileService fileService) : IApplicationService
+    IFileService fileService,
+    ILogger<ApplicationService> logger) : IApplicationService
 {
     private readonly IApplicationRepository _applicationRepository = applicationRepository;
     private readonly IFileService _fileService = fileService;
+    private readonly ILogger<ApplicationService> _logger = logger;
 
     public async Task<Result<ApplicationDto>> CreateAsync(
         CreateApplicationDto createDto)
@@ -26,6 +28,8 @@ public class ApplicationService(
 
         if (alreadyExists)
         {
+            _logger.LogError(
+                "An application with the same job title, company name, and location already exists.");
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.Conflict,
                 "An application with the same job title, company name, and location already exists.");
@@ -36,6 +40,9 @@ public class ApplicationService(
         var validationResult = await validator.ValidateAsync(createDto);
         if (!validationResult.IsValid)
         {
+            _logger.LogError(
+                "Validation failed for CreateApplicationDto: {Errors}",
+                string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.ValidationError,
                 string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)));
@@ -51,6 +58,9 @@ public class ApplicationService(
 
         if (resumeFileResult.IsFailure)
         {
+            _logger.LogError(
+                "Failed to upload resume file: {ErrorMessage}",
+                resumeFileResult.ErrorMessage);
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.FileUploadError,
                 resumeFileResult.ErrorMessage!);
@@ -68,6 +78,9 @@ public class ApplicationService(
 
             if (coverLetterFileResult.IsFailure)
             {
+                _logger.LogError(
+                    "Failed to upload cover letter file: {ErrorMessage}",
+                    coverLetterFileResult.ErrorMessage);
                 return Result<ApplicationDto>.Failure(
                     Enums.ErrorType.FileUploadError,
                     coverLetterFileResult.ErrorMessage!);
@@ -89,6 +102,9 @@ public class ApplicationService(
 
         if (application is null)
         {
+            _logger.LogError(
+                "Application with ID {Id} not found.",
+                id);
             return Result.Failure(
                 Enums.ErrorType.NotFound,
                 "Application not found.");
@@ -130,6 +146,9 @@ public class ApplicationService(
 
         if (application is null)
         {
+            _logger.LogError(
+                "Application with ID {Id} not found.",
+                id);
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.NotFound,
                 "Application not found.");
@@ -145,6 +164,9 @@ public class ApplicationService(
 
         if (application is null)
         {
+            _logger.LogError(
+                "Application with ID {Id} not found.",
+                id);
             return Result.Failure(
                 Enums.ErrorType.NotFound,
                 "Application not found.");
@@ -163,6 +185,9 @@ public class ApplicationService(
 
         if (application is null)
         {
+            _logger.LogError(
+                "Application with ID {Id} not found.",
+                id);
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.NotFound,
                 "Application not found.");
@@ -177,6 +202,8 @@ public class ApplicationService(
 
         if (alreadyExists)
         {
+            _logger.LogError(
+                "An application with the same job title, company name, and location already exists.");
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.Conflict,
                 "An application with the same job title, company name, and location already exists.");
@@ -186,6 +213,9 @@ public class ApplicationService(
         var validationResult = await validator.ValidateAsync(updateDto);
         if (!validationResult.IsValid)
         {
+            _logger.LogError(
+                "Validation failed for UpdateApplicationDto: {Errors}",
+                string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
             return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.ValidationError,
                 string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)));
@@ -203,6 +233,9 @@ public class ApplicationService(
 
             if (resumeFileResult.IsFailure)
             {
+                _logger.LogError(
+                    "Failed to upload resume file: {ErrorMessage}",
+                    resumeFileResult.ErrorMessage);
                 return Result<ApplicationDto>.Failure(
                     Enums.ErrorType.FileUploadError,
                     resumeFileResult.ErrorMessage!);
@@ -221,6 +254,9 @@ public class ApplicationService(
 
             if (coverLetterFileResult.IsFailure)
             {
+                _logger.LogError(
+                    "Failed to upload cover letter file: {ErrorMessage}",
+                    coverLetterFileResult.ErrorMessage);
                 return Result<ApplicationDto>.Failure(
                     Enums.ErrorType.FileUploadError,
                     coverLetterFileResult.ErrorMessage!);
