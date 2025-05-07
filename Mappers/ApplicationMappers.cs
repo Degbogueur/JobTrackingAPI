@@ -31,7 +31,7 @@ public static class ApplicationMappers
             MaxSalaryProposed = createDto.MaxSalaryProposed,
             MinSalaryOffered = createDto.MinSalaryOffered,
             MaxSalaryOffered = createDto.MaxSalaryOffered,
-            Currency = createDto.Currency ?? Enums.Currency.USD,
+            Currency = createDto.Currency,
             KeyWords = createDto.KeyWords,
             InterestLevel = createDto.InterestLevel,
             ContactName = createDto.ContactName,

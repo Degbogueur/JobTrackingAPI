@@ -116,20 +116,56 @@ public class ApplicationService(
     }
 
     public async Task<Result<PaginatedResult<ApplicationDto>>> GetAllAsync(
-        int pageIndex = 1,
-        int pageSize = 20)
+        QueryParameters parameters)
     {
-        var totalCount = await _applicationRepository
-            .GetAllAsync()
-            .CountAsync();
+        var pageIndex = parameters.PageIndex;
+        var pageSize = parameters.PageSize;
+        var searchTerm = parameters.SearchTerm;
 
-        var applications = await _applicationRepository.GetAllAsync()
+        var query = _applicationRepository
+            .GetAllAsync()
+            .Where(a => (string.IsNullOrEmpty(searchTerm) ||
+                        a.JobTitle.Contains(searchTerm) ||
+                        a.CompanyName.Contains(searchTerm) ||
+                        a.Location.Contains(searchTerm)) &&
+                       !a.IsDeleted);
+
+        var totalCount = await query.CountAsync();
+
+        var applications = await query            
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
             .Select(a => a.ToDto())
             .AsNoTracking()
             .ToListAsync();
         
+        var paginatedResult = PaginatedResult<ApplicationDto>.Create(
+            applications,
+            totalCount,
+            pageIndex,
+            pageSize);
+
+        return Result<PaginatedResult<ApplicationDto>>.Success(
+            paginatedResult);
+    }
+
+    public async Task<Result<PaginatedResult<ApplicationDto>>> GetAllDeletedAsync(
+        int pageIndex = 1,
+        int pageSize = 20)
+    {
+        var query = _applicationRepository
+            .GetAllAsync()
+            .Where(a => a.IsDeleted);
+
+        var totalCount = await query.CountAsync();
+
+        var applications = await query
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => a.ToDto())
+            .AsNoTracking()
+            .ToListAsync();
+
         var paginatedResult = PaginatedResult<ApplicationDto>.Create(
             applications,
             totalCount,
@@ -270,4 +306,13 @@ public class ApplicationService(
         return Result<ApplicationDto>.Success(
             application.ToDto());
     }
+}
+
+public class QueryParameters
+{
+    public int PageIndex { get; set; } = 1;
+    public int PageSize { get; set; } = 9;
+    public string? SearchTerm { get; set; }
+    //public string? SortBy { get; set; }
+    //public string? SortOrder { get; set; }
 }

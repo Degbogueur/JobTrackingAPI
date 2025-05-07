@@ -1,6 +1,7 @@
 ﻿using JobTrackingAPI.Contracts.Services;
 using JobTrackingAPI.DTOs;
 using JobTrackingAPI.Extensions;
+using JobTrackingAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JobTrackingAPI.Controllers;
@@ -21,10 +22,19 @@ public class ApplicationsController(
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
-        [FromQuery] int pageIndex = 1, 
+        [FromQuery] QueryParameters? parameters = null)
+    {
+        parameters ??= new QueryParameters();
+        var result = await _applicationService.GetAllAsync(parameters);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("trash")]
+    public async Task<IActionResult> GetAllDeleted(
+        [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        var result = await _applicationService.GetAllAsync(pageIndex, pageSize);
+        var result = await _applicationService.GetAllDeletedAsync(pageIndex, pageSize);
         return result.ToActionResult();
     }
 
@@ -42,7 +52,7 @@ public class ApplicationsController(
         return result.ToActionResult(nameof(GetById));
     }
 
-    [HttpPatch("{id}/soft-delete")]
+    [HttpPatch("{id}/delete")]
     public async Task<IActionResult> Delete(int id)
     {
         var result = await _applicationService.DeleteAsync(id);

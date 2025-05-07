@@ -1,6 +1,4 @@
-﻿using JobTrackingAPI.Enums;
-
-namespace JobTrackingAPI.DTOs;
+﻿namespace JobTrackingAPI.DTOs;
 
 public class ApplicationDto
 {

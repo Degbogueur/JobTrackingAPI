@@ -35,7 +35,6 @@ public class ApplicationRepository(
     public IQueryable<Application> GetAllAsync()
     {
         return _context.Applications
-            .Where(a => !a.IsDeleted)
             .OrderByDescending(a => a.ApplicationDate);
     }
 

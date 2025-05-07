@@ -1,5 +1,6 @@
 ﻿using JobTrackingAPI.Contracts.Results;
 using JobTrackingAPI.DTOs;
+using JobTrackingAPI.Services;
 
 namespace JobTrackingAPI.Contracts.Services;
 
@@ -11,8 +12,11 @@ public interface IApplicationService
     Task<Result> DeleteAsync(int id);
 
     Task<Result<PaginatedResult<ApplicationDto>>> GetAllAsync(
-        int pageIndex = 1,
-        int pageSize = 20);
+        QueryParameters parameters);
+
+    Task<Result<PaginatedResult<ApplicationDto>>> GetAllDeletedAsync(
+        int pageIndex,
+        int pageSize);
 
     Task<Result<ApplicationDto>> GetByIdAsync(int id);
 
