@@ -34,8 +34,7 @@ public class ApplicationRepository(
 
     public IQueryable<Application> GetAllAsync()
     {
-        return _context.Applications
-            .OrderByDescending(a => a.ApplicationDate);
+        return _context.Applications;
     }
 
     public async Task<Application?> GetByIdAsync(int id)

@@ -2,6 +2,7 @@
 using JobTrackingAPI.Contracts.Results;
 using JobTrackingAPI.Contracts.Services;
 using JobTrackingAPI.DTOs;
+using JobTrackingAPI.Enums;
 using JobTrackingAPI.Mappers;
 using JobTrackingAPI.Validators;
 using Microsoft.EntityFrameworkCore;
@@ -121,6 +122,7 @@ public class ApplicationService(
         var pageIndex = parameters.PageIndex;
         var pageSize = parameters.PageSize;
         var searchTerm = parameters.SearchTerm;
+        var sortBy = parameters.SortBy;
 
         var query = _applicationRepository
             .GetAllAsync()
@@ -129,6 +131,32 @@ public class ApplicationService(
                         a.CompanyName.Contains(searchTerm) ||
                         a.Location.Contains(searchTerm)) &&
                        !a.IsDeleted);
+
+        if (!string.IsNullOrEmpty(sortBy))
+        {
+            query = sortBy.ToLower() switch
+            {
+                "name-asc" => query.OrderBy(a => a.JobTitle),
+                "name-desc" => query.OrderByDescending(a => a.JobTitle),
+                "date-asc" => query.OrderBy(a => a.ApplicationDate),
+                "date-desc" => query.OrderByDescending(a => a.ApplicationDate),
+                _ => query.OrderByDescending(a => a.ApplicationDate)
+            };
+        }
+        else
+        {
+            query = query.OrderByDescending(a => a.ApplicationDate);
+        }
+
+        if (parameters.Statuses != null)
+        {
+            query = query.Where(a => parameters.Statuses.Contains(a.Status));
+        }
+
+        if (parameters.Priorities != null)
+        {
+            query = query.Where(a => parameters.Priorities.Contains(a.Priority));
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -313,6 +341,17 @@ public class QueryParameters
     public int PageIndex { get; set; } = 1;
     public int PageSize { get; set; } = 9;
     public string? SearchTerm { get; set; }
-    //public string? SortBy { get; set; }
-    //public string? SortOrder { get; set; }
+    public string? SortBy { get; set; }
+    public string? StatusFilters { get; set; }
+    public string? PriorityFilters { get; set; }
+
+    public ApplicationStatus[]? Statuses =>
+        StatusFilters?.Split(',')
+            .Select(s => Enum.TryParse<ApplicationStatus>(s, true, out var status) ? status : default)
+            .ToArray();
+
+    public Priority[]? Priorities =>
+        PriorityFilters?.Split(',')
+            .Select(s => Enum.TryParse<Priority>(s, true, out var priority) ? priority : default)
+            .ToArray();
 }
