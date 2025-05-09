@@ -16,7 +16,7 @@ public class Application
     public string OfferUrl { get; set; }
     public DateTime? PostingDate { get; set; }
     public DateTime? ClosingDate { get; set; }
-    public string? ResumeFilePath { get; set; }
+    public string ResumeFilePath { get; set; }
     public string? CoverLetterFilePath { get; set; }
     public ApplicationStatus Status { get; set; }
     public ActionType LastAction { get; set; }

@@ -10,6 +10,7 @@ public class LocalFileService(
     private readonly ILogger<LocalFileService> _logger = logger;
     private readonly string _basePath = Path.Combine(
         Directory.GetCurrentDirectory(),
+        "wwwroot",
         "Uploads");
 
     public Task DeleteFileAsync(string filePath)

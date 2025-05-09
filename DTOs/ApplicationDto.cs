@@ -13,7 +13,9 @@ public class ApplicationDto
     public string OfferUrl { get; set; }
     public DateTime? PostingDate { get; set; }
     public DateTime? ClosingDate { get; set; }
+    public string ResumeFileName { get; set; }
     public string ResumeFilePath { get; set; }
+    public string? CoverLetterFileName { get; set; }
     public string? CoverLetterFilePath { get; set; }
     public string Status { get; set; }
     public string LastAction { get; set; }
