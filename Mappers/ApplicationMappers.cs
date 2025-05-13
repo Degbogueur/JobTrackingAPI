@@ -74,7 +74,8 @@ public static class ApplicationMappers
             KeyWords = application.KeyWords,
             InterestLevel = application.InterestLevel,
             ContactName = application.ContactName,
-            ContactEmail = application.ContactEmail
+            ContactEmail = application.ContactEmail,
+            IsDeleted = application.IsDeleted
         };
     }
 

@@ -106,12 +106,12 @@ public class ApplicationService(
             _logger.LogError(
                 "Application with ID {Id} not found.",
                 id);
-            return Result.Failure(
+            return Result<ApplicationDto>.Failure(
                 Enums.ErrorType.NotFound,
                 "Application not found.");
         }
 
-        application.IsDeleted = true;
+        _applicationRepository.Delete(application);
         await _applicationRepository.SaveChangesAsync();
         return Result.Success();
     }
@@ -119,86 +119,18 @@ public class ApplicationService(
     public async Task<Result<PaginatedResult<ApplicationDto>>> GetAllAsync(
         QueryParameters parameters)
     {
-        var pageIndex = parameters.PageIndex;
-        var pageSize = parameters.PageSize;
-        var searchTerm = parameters.SearchTerm;
-        var sortBy = parameters.SortBy;
-
-        var query = _applicationRepository
-            .GetAllAsync()
-            .Where(a => (string.IsNullOrEmpty(searchTerm) ||
-                        a.JobTitle.Contains(searchTerm) ||
-                        a.CompanyName.Contains(searchTerm) ||
-                        a.Location.Contains(searchTerm)) &&
-                       !a.IsDeleted);
-
-        if (!string.IsNullOrEmpty(sortBy))
-        {
-            query = sortBy.ToLower() switch
-            {
-                "name-asc" => query.OrderBy(a => a.JobTitle),
-                "name-desc" => query.OrderByDescending(a => a.JobTitle),
-                "date-asc" => query.OrderBy(a => a.ApplicationDate),
-                "date-desc" => query.OrderByDescending(a => a.ApplicationDate),
-                _ => query.OrderByDescending(a => a.ApplicationDate)
-            };
-        }
-        else
-        {
-            query = query.OrderByDescending(a => a.ApplicationDate);
-        }
-
-        if (parameters.Statuses != null)
-        {
-            query = query.Where(a => parameters.Statuses.Contains(a.Status));
-        }
-
-        if (parameters.Priorities != null)
-        {
-            query = query.Where(a => parameters.Priorities.Contains(a.Priority));
-        }
-
-        var totalCount = await query.CountAsync();
-
-        var applications = await query            
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => a.ToDto())
-            .AsNoTracking()
-            .ToListAsync();
-        
-        var paginatedResult = PaginatedResult<ApplicationDto>.Create(
-            applications,
-            totalCount,
-            pageIndex,
-            pageSize);
+        var paginatedResult = await GetAllApplicationsAsync(parameters);
 
         return Result<PaginatedResult<ApplicationDto>>.Success(
             paginatedResult);
     }
 
     public async Task<Result<PaginatedResult<ApplicationDto>>> GetAllDeletedAsync(
-        int pageIndex = 1,
-        int pageSize = 20)
+        QueryParameters parameters)
     {
-        var query = _applicationRepository
-            .GetAllAsync()
-            .Where(a => a.IsDeleted);
-
-        var totalCount = await query.CountAsync();
-
-        var applications = await query
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => a.ToDto())
-            .AsNoTracking()
-            .ToListAsync();
-
-        var paginatedResult = PaginatedResult<ApplicationDto>.Create(
-            applications,
-            totalCount,
-            pageIndex,
-            pageSize);
+        var paginatedResult = await GetAllApplicationsAsync(
+            parameters,
+            isDeleted: true);
 
         return Result<PaginatedResult<ApplicationDto>>.Success(
             paginatedResult);
@@ -237,6 +169,25 @@ public class ApplicationService(
         }
 
         application.IsDeleted = false;
+        await _applicationRepository.SaveChangesAsync();
+        return Result.Success();
+    }
+
+    public async Task<Result> SoftDeleteAsync(int id)
+    {
+        var application = await _applicationRepository.GetByIdAsync(id);
+
+        if (application is null)
+        {
+            _logger.LogError(
+                "Application with ID {Id} not found.",
+                id);
+            return Result.Failure(
+                Enums.ErrorType.NotFound,
+                "Application not found.");
+        }
+
+        application.IsDeleted = true;
         await _applicationRepository.SaveChangesAsync();
         return Result.Success();
     }
@@ -333,6 +284,65 @@ public class ApplicationService(
 
         return Result<ApplicationDto>.Success(
             application.ToDto());
+    }
+
+    private async Task<PaginatedResult<ApplicationDto>> GetAllApplicationsAsync(
+        QueryParameters parameters, 
+        bool isDeleted = false)
+    {
+        var pageIndex = parameters.PageIndex;
+        var pageSize = parameters.PageSize;
+        var searchTerm = parameters.SearchTerm;
+        var sortBy = parameters.SortBy;
+
+        var query = _applicationRepository
+            .GetAllAsync()
+            .Where(a => (string.IsNullOrEmpty(searchTerm) ||
+                        a.JobTitle.Contains(searchTerm) ||
+                        a.CompanyName.Contains(searchTerm) ||
+                        a.Location.Contains(searchTerm)) &&
+                        a.IsDeleted == isDeleted);
+
+        if (!string.IsNullOrEmpty(sortBy))
+        {
+            query = sortBy.ToLower() switch
+            {
+                "name-asc" => query.OrderBy(a => a.JobTitle),
+                "name-desc" => query.OrderByDescending(a => a.JobTitle),
+                "date-asc" => query.OrderBy(a => a.ApplicationDate),
+                "date-desc" => query.OrderByDescending(a => a.ApplicationDate),
+                _ => query.OrderByDescending(a => a.ApplicationDate)
+            };
+        }
+        else
+        {
+            query = query.OrderByDescending(a => a.ApplicationDate);
+        }
+
+        if (parameters.Statuses != null)
+        {
+            query = query.Where(a => parameters.Statuses.Contains(a.Status));
+        }
+
+        if (parameters.Priorities != null)
+        {
+            query = query.Where(a => parameters.Priorities.Contains(a.Priority));
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var applications = await query
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => a.ToDto())
+            .AsNoTracking()
+            .ToListAsync();
+
+        return PaginatedResult<ApplicationDto>.Create(
+            applications,
+            totalCount,
+            pageIndex,
+            pageSize);
     }
 }
 

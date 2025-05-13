@@ -7,6 +7,8 @@ public interface IApplicationRepository
     Task<Application> CreateAsync(
         Application application);
 
+    void Delete(Application application);
+
     Task<bool> ExistsAsync(
         string jobTitle,
         string companyName,

@@ -31,10 +31,10 @@ public class ApplicationsController(
 
     [HttpGet("trash")]
     public async Task<IActionResult> GetAllDeleted(
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] QueryParameters? parameters = null)
     {
-        var result = await _applicationService.GetAllDeletedAsync(pageIndex, pageSize);
+        parameters ??= new QueryParameters();
+        var result = await _applicationService.GetAllDeletedAsync(parameters);
         return result.ToActionResult();
     }
 
@@ -53,9 +53,9 @@ public class ApplicationsController(
     }
 
     [HttpPatch("{id}/delete")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> SoftDelete(int id)
     {
-        var result = await _applicationService.DeleteAsync(id);
+        var result = await _applicationService.SoftDeleteAsync(id);
         return result.ToActionResult();
     }
 
@@ -63,6 +63,13 @@ public class ApplicationsController(
     public async Task<IActionResult> Restore(int id)
     {
         var result = await _applicationService.RestoreAsync(id);
+        return result.ToActionResult();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await _applicationService.DeleteAsync(id);
         return result.ToActionResult();
     }
 }

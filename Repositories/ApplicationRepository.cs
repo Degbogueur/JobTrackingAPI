@@ -18,6 +18,11 @@ public class ApplicationRepository(
         return application;
     }
 
+    public void Delete(Application application)
+    {
+        _context.Applications.Remove(application);
+    }
+
     public async Task<bool> ExistsAsync(
         string jobTitle, 
         string companyName,

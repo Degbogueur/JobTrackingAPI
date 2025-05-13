@@ -15,12 +15,13 @@ public interface IApplicationService
         QueryParameters parameters);
 
     Task<Result<PaginatedResult<ApplicationDto>>> GetAllDeletedAsync(
-        int pageIndex,
-        int pageSize);
+        QueryParameters parameters);
 
     Task<Result<ApplicationDto>> GetByIdAsync(int id);
 
     Task<Result> RestoreAsync(int id);
+
+    Task<Result> SoftDeleteAsync(int id);
 
     Task<Result<ApplicationDto>> UpdateAsync(
         int id,
