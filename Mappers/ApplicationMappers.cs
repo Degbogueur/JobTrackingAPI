@@ -110,4 +110,13 @@ public static class ApplicationMappers
         application.ContactName = updateDto.ContactName;
         application.ContactEmail = updateDto.ContactEmail;
     }
+
+    public static void UpdateStatusFromDto(this Application application,
+        UpdateApplicationStatusDto updateStatusDto)
+    {
+        application.Status = updateStatusDto.Status;
+        application.RejectionReason = updateStatusDto.RejectionReason;
+        application.NextAction = updateStatusDto.NextAction;
+        application.NextActionDate= updateStatusDto.NextActionDate;
+    }
 }

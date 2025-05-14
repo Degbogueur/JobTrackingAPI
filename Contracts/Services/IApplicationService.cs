@@ -26,4 +26,8 @@ public interface IApplicationService
     Task<Result<ApplicationDto>> UpdateAsync(
         int id,
         UpdateApplicationDto updateDto);
+
+    Task<Result<ApplicationDto>> UpdateStatusAsync(
+        int id, 
+        UpdateApplicationStatusDto updateStatusDto);
 }

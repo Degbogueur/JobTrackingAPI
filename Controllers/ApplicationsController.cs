@@ -52,6 +52,13 @@ public class ApplicationsController(
         return result.ToActionResult(nameof(GetById));
     }
 
+    [HttpPatch("{id}/update-status")]
+    public async Task<IActionResult> UpdateStatus(int id, UpdateApplicationStatusDto updateStatusDto)
+    {
+        var result = await _applicationService.UpdateStatusAsync(id, updateStatusDto);
+        return result.ToActionResult(nameof(GetById));
+    }
+
     [HttpPatch("{id}/delete")]
     public async Task<IActionResult> SoftDelete(int id)
     {

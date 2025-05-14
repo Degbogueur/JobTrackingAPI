@@ -286,6 +286,29 @@ public class ApplicationService(
             application.ToDto());
     }
 
+    public async Task<Result<ApplicationDto>> UpdateStatusAsync(
+        int id,
+        UpdateApplicationStatusDto updateStatusDto)
+    {
+        var application = await _applicationRepository.GetByIdAsync(id);
+
+        if (application is null)
+        {
+            _logger.LogError(
+                "Application with ID {Id} not found.",
+                id);
+            return Result<ApplicationDto>.Failure(
+                Enums.ErrorType.NotFound,
+                "Application not found.");
+        }
+
+        application.UpdateStatusFromDto(updateStatusDto);
+        await _applicationRepository.SaveChangesAsync();
+
+        return Result<ApplicationDto>.Success(
+            application.ToDto());
+    }
+
     private async Task<PaginatedResult<ApplicationDto>> GetAllApplicationsAsync(
         QueryParameters parameters, 
         bool isDeleted = false)
