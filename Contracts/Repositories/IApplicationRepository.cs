@@ -15,7 +15,7 @@ public interface IApplicationRepository
         string location,
         int? excludedId = null);
 
-    IQueryable<Application> GetAllAsync();
+    IQueryable<Application> GetAll();
 
     Task<Application?> GetByIdAsync(
         int id);

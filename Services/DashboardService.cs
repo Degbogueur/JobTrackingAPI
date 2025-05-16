@@ -1,4 +1,5 @@
-﻿using JobTrackingAPI.Contracts.Repositories;
+﻿using System.Threading.Tasks;
+using JobTrackingAPI.Contracts.Repositories;
 using JobTrackingAPI.Contracts.Results;
 using JobTrackingAPI.Contracts.Services;
 using JobTrackingAPI.DTOs;
@@ -13,70 +14,85 @@ public class DashboardService(
 {
     private readonly IApplicationRepository _applicationRepository = applicationRepository;
 
+    private static readonly ApplicationStatus[] InProgressStatuses =
+    [
+        ApplicationStatus.Applied,
+        ApplicationStatus.Viewed,
+        ApplicationStatus.Shortlisted,
+        ApplicationStatus.InterviewScheduled,
+        ApplicationStatus.Interviewed,
+        ApplicationStatus.OfferReceived
+    ];
+
+    private static readonly ApplicationStatus[] ResponseStatuses =
+    [
+        ApplicationStatus.Viewed,
+        ApplicationStatus.Shortlisted,
+        ApplicationStatus.InterviewScheduled,
+        ApplicationStatus.Interviewed,
+        ApplicationStatus.OfferReceived,
+        ApplicationStatus.OfferAccepted,
+        ApplicationStatus.OfferDeclined,
+        ApplicationStatus.Rejected
+    ];
+
     public async Task<Result<DashboardDto>> GetDashboardAsync()
     {
-        return Result<DashboardDto>.Success(
-            new DashboardDto
-            {
-                TotalApplications = await GetTotalApplicationsAsync(),
-                ApplicationsInProgress = await GetApplicationsInProgressAsync(),
-                ResponseRate = await GetApplicationsResponseRateAsync(),
-            });
+        return Result<DashboardDto>.Success(new DashboardDto
+        {
+            TotalApplications = await GetTotalApplicationsAsync(),
+            ApplicationsInProgress = await GetApplicationsInProgressAsync(),
+            ResponseRate = await GetApplicationsResponseRateAsync(),
+            AverageResponseTime = await GetApplicationsAverageResponseTimeAsync()
+        });
     }
 
-    private async Task<List<Application>> GetAllAsync()
+    private IQueryable<Application> GetAll()
     {
-        var query = _applicationRepository.GetAllAsync();
-        return await query.Where(a => !a.IsDeleted).ToListAsync();
-    }
-
-    private async Task<List<Application>> GetRespondedApplicationsAsync()
-    {
-        var applications = await GetAllAsync();
-        return applications
-            .Where(a => !new[]
-            {
-                ApplicationStatus.Draft,
-                ApplicationStatus.Applied,
-                ApplicationStatus.NoResponse,
-                ApplicationStatus.Withdrawn,
-                ApplicationStatus.NotInterested
-            }.Contains(a.Status))
-            .ToList();
+        var query = _applicationRepository.GetAll();
+        return query.Where(a => !a.IsDeleted);
     }
 
     private async Task<int> GetTotalApplicationsAsync()
     {
-        var applications = await GetAllAsync();
-        return applications.Count;
+        var applications = GetAll();
+        return await applications.CountAsync();
     }
 
     private async Task<int> GetApplicationsInProgressAsync()
     {
-        var applications = await GetAllAsync();
-        return applications.Count(a => new[]
-        {
-            ApplicationStatus.Applied,
-            ApplicationStatus.Viewed,
-            ApplicationStatus.Shortlisted,
-            ApplicationStatus.InterviewScheduled,
-            ApplicationStatus.Interviewed,
-            ApplicationStatus.OfferReceived
-        }.Contains(a.Status));
+        var applications = GetAll();
+        return await applications.CountAsync(a => InProgressStatuses.Contains(a.Status));
     }
 
     private async Task<double> GetApplicationsResponseRateAsync()
     {
-        var applications = await GetAllAsync();
+        var applications = GetAll();
+        var totalCount = await applications.CountAsync();
 
-        if (applications.Count == 0)
+        if (totalCount == 0)
             return 0.0;
 
-        var respondedApplications = await GetRespondedApplicationsAsync();
+        var respondedCount =await applications.CountAsync(a => ResponseStatuses.Contains(a.Status));
 
-        var responseRate = (double)respondedApplications.Count / applications.Count * 100;
+        var responseRate = (double)respondedCount / totalCount * 100;
         return Math.Round(responseRate, 2);
     }
 
-    
+    private async Task<double> GetApplicationsAverageResponseTimeAsync()
+    {
+        var applications = GetAll();
+        var respondedApplications = applications.Where(a => a.FirstResponseDate != null);
+
+        var count = await respondedApplications.CountAsync();
+        if (count == 0)
+            return 0.0;
+
+        var totalDays = await respondedApplications
+            .SumAsync(a => (a.FirstResponseDate!.Value - a.ApplicationDate).TotalDays);
+
+        var averageDays = (double)totalDays / count;
+
+        return Math.Round(averageDays, 2);
+    }
 }

@@ -37,7 +37,7 @@ public class ApplicationRepository(
         );
     }
 
-    public IQueryable<Application> GetAllAsync()
+    public IQueryable<Application> GetAll()
     {
         return _context.Applications;
     }
