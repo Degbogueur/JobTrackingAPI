@@ -4,6 +4,7 @@ using JobTrackingAPI.Contracts.Services;
 using JobTrackingAPI.DTOs;
 using JobTrackingAPI.Enums;
 using JobTrackingAPI.Mappers;
+using JobTrackingAPI.Models;
 using JobTrackingAPI.Validators;
 using Microsoft.EntityFrameworkCore;
 
@@ -236,6 +237,8 @@ public class ApplicationService(
                 string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)));
         }
 
+        UpdateFirstResponseDate(application, updateDto.Status);
+
         application.UpdateFromDto(updateDto);
 
         if (updateDto.Resume != null)
@@ -302,6 +305,8 @@ public class ApplicationService(
                 "Application not found.");
         }
 
+        UpdateFirstResponseDate(application, updateStatusDto.Status);
+
         application.UpdateStatusFromDto(updateStatusDto);
         await _applicationRepository.SaveChangesAsync();
 
@@ -319,7 +324,7 @@ public class ApplicationService(
         var sortBy = parameters.SortBy;
 
         var query = _applicationRepository
-            .GetAllAsync()
+            .GetAll()
             .Where(a => (string.IsNullOrEmpty(searchTerm) ||
                         a.JobTitle.Contains(searchTerm) ||
                         a.CompanyName.Contains(searchTerm) ||
@@ -366,6 +371,26 @@ public class ApplicationService(
             totalCount,
             pageIndex,
             pageSize);
+    }
+
+    private void UpdateFirstResponseDate(Application application, ApplicationStatus status)
+    {
+        var isResponseStatus = new[]
+        {
+            ApplicationStatus.Viewed,
+            ApplicationStatus.Shortlisted,
+            ApplicationStatus.InterviewScheduled,
+            ApplicationStatus.Interviewed,
+            ApplicationStatus.OfferReceived,
+            ApplicationStatus.OfferAccepted,
+            ApplicationStatus.OfferDeclined,
+            ApplicationStatus.Rejected
+        }.Contains(status);
+
+        if (application.FirstResponseDate is null && isResponseStatus)
+        {
+            application.FirstResponseDate = DateTime.Today;
+        }
     }
 }
 
