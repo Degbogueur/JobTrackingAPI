@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IApplicationService, ApplicationService>();
         services.AddScoped<IFileService, LocalFileService>();
+        services.AddScoped<IDashboardService, DashboardService>();
         return services;
     }
 
