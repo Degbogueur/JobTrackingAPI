@@ -135,7 +135,7 @@ public class DashboardService(
 
         var allMonths = Enumerable.Range(1, 12)
             .ToDictionary(
-                month => CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetMonthName(month),
+                month => CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetAbbreviatedMonthName(month),
                 month => monthCounts.TryGetValue(month, out var count) ? count : 0);
 
         return allMonths;
