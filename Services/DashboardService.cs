@@ -124,16 +124,21 @@ public class DashboardService(
     private async Task<Dictionary<string, int>> GetApplicationsMonthlyDistributionAsync()
     {
         var applications = GetAll();
-        return await applications
+        var monthCounts = await applications
             .GroupBy(a => a.ApplicationDate.Month)
             .Select(a => new
             {
                 Month = a.Key,
                 Count = a.Count()
             })
-            .ToDictionaryAsync(
-                x => CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(x.Month),
-                x => x.Count);
+            .ToDictionaryAsync(x => x.Month, x => x.Count);
+
+        var allMonths = Enumerable.Range(1, 12)
+            .ToDictionary(
+                month => CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetMonthName(month),
+                month => monthCounts.TryGetValue(month, out var count) ? count : 0);
+
+        return allMonths;
     }
 
     private async Task<Dictionary<string, int>> GetApplicationsSourceDistributionAsync()
