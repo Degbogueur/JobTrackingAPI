@@ -52,7 +52,7 @@ public class DashboardService(
             PriorityDistribution = await GetApplicationsPriorityDistributionAsync(),
             TopEnterprises = await GetApplicationsTopEnterprisesAsync(),
             TopLocations = await GetApplicationsTopLocationsAsync(),
-            NextActions = await GetApplicationsNextActionsAsync(),
+            UpcomingActions = await GetApplicationsUpcomingActionsAsync(),
             RecentApplications = await GetRecentApplicationsAsync()
         });
     }    
@@ -174,16 +174,21 @@ public class DashboardService(
     private async Task<Dictionary<string, int>> GetApplicationsPriorityDistributionAsync()
     {
         var applications = GetAll();
-        return await applications
+        var allPriorities = new[] { Priority.Low, Priority.Medium, Priority.High, Priority.Critical };
+
+        var priorityCounts = await applications
             .GroupBy(a => a.Priority)
             .Select(a => new
             {
-                Priority = a.Key.Humanize(),
+                Priority = a.Key,
                 Count = a.Count()
             })
-            .ToDictionaryAsync(
-                x => x.Priority,
-                x => x.Count);
+            .ToDictionaryAsync(x => x.Priority, x => x.Count);
+
+        return allPriorities
+            .ToDictionary(
+                priority => priority.Humanize(),
+                priority => priorityCounts.TryGetValue(priority, out var count) ? count : 0);
     }
 
     private async Task<Dictionary<string, int>> GetApplicationsTopEnterprisesAsync()
@@ -220,18 +225,16 @@ public class DashboardService(
                 x => x.Count);
     }
 
-    private async Task<List<NextAction>> GetApplicationsNextActionsAsync()
+    private async Task<Dictionary<string, DateTime>> GetApplicationsUpcomingActionsAsync()
     {
         var applications = GetAll();
         return await applications
             .Where(a => a.NextActionDate.HasValue)
             .OrderByDescending(a => a.NextActionDate!.Value)
-            .Select(a => new NextAction
-            {
-                ActionName = a.NextAction.Humanize(),
-                ActionDate = a.NextActionDate
-            })
-            .ToListAsync();
+            .Take(5)
+            .ToDictionaryAsync(
+                x => x.NextAction.Humanize(),
+                x => x.NextActionDate!.Value);
     }
 
     private async Task<List<RecentApplication>> GetRecentApplicationsAsync()

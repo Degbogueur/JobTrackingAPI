@@ -21,15 +21,9 @@ public class DashboardDto
 
     public Dictionary<string, int> TopLocations { get; set; } = [];
 
-    public List<NextAction> NextActions { get; set; } = [];
+    public Dictionary<string, DateTime> UpcomingActions { get; set; } = [];
 
     public List<RecentApplication> RecentApplications { get; set; } = [];
-}
-
-public class NextAction
-{
-    public string ActionName { get; set; } = null!;
-    public DateTime? ActionDate { get; set; }
 }
 
 public class RecentApplication
