@@ -23,9 +23,11 @@ public class ApplicationsController(
     }
 
     [HttpGet("dashboard")]
-    public async Task<IActionResult> Dashboard()
+    public async Task<IActionResult> Dashboard(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate)
     {
-        var result = await _dashboardService.GetDashboardAsync();
+        var result = await _dashboardService.GetDashboardAsync(startDate, endDate);
         return result.ToActionResult();
     }
 

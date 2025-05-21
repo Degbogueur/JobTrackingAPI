@@ -37,153 +37,179 @@ public class DashboardService(
         ApplicationStatus.Rejected
     ];
 
-    public async Task<Result<DashboardDto>> GetDashboardAsync()
+    public async Task<Result<DashboardDto>> GetDashboardAsync(
+        DateTime? startDate = null,
+        DateTime? endDate = null)
     {
+        var applications = await GetAllApplicationsAsync(startDate, endDate);
+
         return Result<DashboardDto>.Success(new DashboardDto
         {
-            TotalApplications = await GetTotalApplicationsAsync(),
-            ApplicationsInProgress = await GetApplicationsInProgressAsync(),
-            ResponseRate = await GetApplicationsResponseRateAsync(),
-            AverageResponseTime = await GetApplicationsAverageResponseTimeAsync(),
-            StatusDistribution = await GetApplicationsStatusDistributionAsync(),
-            MonthlyDistribution = await GetApplicationsMonthlyDistributionAsync(),
-            SourceDistribution = await GetApplicationsSourceDistributionAsync(),
-            ContractTypeDistribution = await GetApplicationsContractTypeDistributionAsync(),
-            PriorityDistribution = await GetApplicationsPriorityDistributionAsync(),
-            TopEnterprises = await GetApplicationsTopEnterprisesAsync(),
-            TopLocations = await GetApplicationsTopLocationsAsync(),
-            UpcomingActions = await GetApplicationsUpcomingActionsAsync(),
-            RecentApplications = await GetRecentApplicationsAsync()
+            TotalApplications = GetTotalApplications(applications),
+            ApplicationsInProgress = GetApplicationsInProgress(applications),
+            ResponseRate = GetApplicationsResponseRate(applications),
+            AverageResponseTime = GetApplicationsAverageResponseTime(applications),
+            StatusDistribution = GetApplicationsStatusDistribution(applications),
+            MonthlyDistribution = GetApplicationsMonthlyDistribution(applications, startDate, endDate),
+            SourceDistribution = GetApplicationsSourceDistribution(applications),
+            ContractTypeDistribution = GetApplicationsContractTypeDistribution(applications),
+            PriorityDistribution = GetApplicationsPriorityDistribution(applications),
+            TopEnterprises = GetApplicationsTopEnterprises(applications),
+            TopLocations = GetApplicationsTopLocations(applications),
+            UpcomingActions = GetApplicationsUpcomingActions(applications),
+            RecentApplications = GetRecentApplications(applications)
         });
-    }    
+    }
 
-    private IQueryable<Application> GetAll()
+    private async Task<List<Application>> GetAllApplicationsAsync(
+        DateTime? startDate = null,
+        DateTime? endDate = null)
     {
         var query = _applicationRepository.GetAll();
-        return query.Where(a => !a.IsDeleted);
+        return await query.Where(a => !a.IsDeleted &&
+                                ((!startDate.HasValue && !endDate.HasValue) ||
+                                a.ApplicationDate >= startDate &&
+                                a.ApplicationDate <= endDate))
+                          .ToListAsync();
     }
 
-    private async Task<int> GetTotalApplicationsAsync()
+    private int GetTotalApplications(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications.CountAsync();
+        return applications.Count;
     }
 
-    private async Task<int> GetApplicationsInProgressAsync()
+    private int GetApplicationsInProgress(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications.CountAsync(a => InProgressStatuses.Contains(a.Status));
+        return applications.Count(a => InProgressStatuses.Contains(a.Status));
     }
 
-    private async Task<double> GetApplicationsResponseRateAsync()
+    private double GetApplicationsResponseRate(List<Application> applications)
     {
-        var applications = GetAll();
-        var totalCount = await applications.CountAsync();
+        var totalCount = applications.Count;
 
         if (totalCount == 0)
             return 0.0;
 
-        var respondedCount =await applications.CountAsync(a => ResponseStatuses.Contains(a.Status));
+        var respondedCount = applications.Count(a => ResponseStatuses.Contains(a.Status));
 
         var responseRate = (double)respondedCount / totalCount * 100;
         return Math.Round(responseRate, 2);
     }
 
-    private async Task<double> GetApplicationsAverageResponseTimeAsync()
+    private double GetApplicationsAverageResponseTime(List<Application> applications)
     {
-        var applications = GetAll();
         var respondedApplications = applications.Where(a => a.FirstResponseDate != null);
 
-        var count = await respondedApplications.CountAsync();
+        var count = respondedApplications.Count();
         if (count == 0)
             return 0.0;
 
-        var totalDays = await respondedApplications
-            .SumAsync(a => (a.FirstResponseDate!.Value - a.ApplicationDate).TotalDays);
+        var totalDays = respondedApplications
+            .Sum(a => (a.FirstResponseDate!.Value - a.ApplicationDate).TotalDays);
 
         var averageDays = (double)totalDays / count;
 
         return Math.Round(averageDays, 2);
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsStatusDistributionAsync()
+    private Dictionary<string, int> GetApplicationsStatusDistribution(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .GroupBy(a => a.Status)
             .Select(a => new
             {
                 Status = a.Key.Humanize(),
                 Count = a.Count()
             })
-            .ToDictionaryAsync(
-                x => x.Status,
-                x => x.Count);
+            .ToDictionary(x => x.Status, x => x.Count);
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsMonthlyDistributionAsync()
+    private Dictionary<string, int> GetApplicationsMonthlyDistribution(
+    List<Application> applications,
+    DateTime? startDate,
+    DateTime? endDate)
     {
-        var applications = GetAll();
-        var monthCounts = await applications
-            .GroupBy(a => a.ApplicationDate.Month)
+        // Group applications by year and month, using two-digit year format
+        var monthCounts = applications
+            .GroupBy(a => new { a.ApplicationDate.Year, a.ApplicationDate.Month })
             .Select(a => new
             {
-                Month = a.Key,
+                YearMonth = $"{CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetAbbreviatedMonthName(a.Key.Month)} {a.Key.Year % 100:D2}",
                 Count = a.Count()
             })
-            .ToDictionaryAsync(x => x.Month, x => x.Count);
+            .ToDictionary(x => x.YearMonth, x => x.Count);
 
-        var allMonths = Enumerable.Range(1, 12)
-            .ToDictionary(
-                month => CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetAbbreviatedMonthName(month),
-                month => monthCounts.TryGetValue(month, out var count) ? count : 0);
+        // Initialize all months in the range with zero counts
+        var allMonths = new Dictionary<string, int>();
+
+        if (startDate.HasValue && endDate.HasValue)
+        {
+            // Use provided date range
+            var start = new DateTime(startDate.Value.Year, startDate.Value.Month, 1);
+            var end = new DateTime(endDate.Value.Year, endDate.Value.Month, 1);
+            for (var date = start; date <= end; date = date.AddMonths(1))
+            {
+                var key = $"{CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetAbbreviatedMonthName(date.Month)} {date.Year % 100:D2}";
+                allMonths[key] = monthCounts.TryGetValue(key, out var count) ? count : 0;
+            }
+        }
+        else
+        {
+            // Use range from earliest to latest ApplicationDate
+            if (applications.Any())
+            {
+                var earliestDate = applications.Min(a => a.ApplicationDate);
+                var latestDate = applications.Max(a => a.ApplicationDate);
+                var start = new DateTime(earliestDate.Year, earliestDate.Month, 1);
+                var end = new DateTime(latestDate.Year, latestDate.Month, 1);
+                for (var date = start; date <= end; date = date.AddMonths(1))
+                {
+                    var key = $"{CultureInfo.GetCultureInfo("en-US").DateTimeFormat.GetAbbreviatedMonthName(date.Month)} {date.Year % 100:D2}";
+                    allMonths[key] = monthCounts.TryGetValue(key, out var count) ? count : 0;
+                }
+            }
+            // If no applications, return empty dictionary or handle as needed
+        }
 
         return allMonths;
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsSourceDistributionAsync()
+    private Dictionary<string, int> GetApplicationsSourceDistribution(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .GroupBy(a => a.Source)
             .Select(a => new
             {
                 Source = a.Key.Humanize(),
                 Count = a.Count()
             })
-            .ToDictionaryAsync(
-                x => x.Source,
-                x => x.Count);
+            .ToDictionary(x => x.Source, x => x.Count);
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsContractTypeDistributionAsync()
+    private Dictionary<string, int> GetApplicationsContractTypeDistribution(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .GroupBy(a => a.ContractType)
             .Select(a => new
             {
                 ContractType = a.Key.Humanize(),
                 Count = a.Count()
             })
-            .ToDictionaryAsync(
-                x => x.ContractType,
-                x => x.Count);
+            .ToDictionary(x => x.ContractType, x => x.Count);
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsPriorityDistributionAsync()
+    private Dictionary<string, int> GetApplicationsPriorityDistribution(List<Application> applications)
     {
-        var applications = GetAll();
         var allPriorities = new[] { Priority.Low, Priority.Medium, Priority.High, Priority.Critical };
 
-        var priorityCounts = await applications
+        var priorityCounts = applications
             .GroupBy(a => a.Priority)
             .Select(a => new
             {
                 Priority = a.Key,
                 Count = a.Count()
             })
-            .ToDictionaryAsync(x => x.Priority, x => x.Count);
+            .ToDictionary(x => x.Priority, x => x.Count);
 
         return allPriorities
             .ToDictionary(
@@ -191,10 +217,9 @@ public class DashboardService(
                 priority => priorityCounts.TryGetValue(priority, out var count) ? count : 0);
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsTopEnterprisesAsync()
+    private Dictionary<string, int> GetApplicationsTopEnterprises(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .GroupBy(a => a.CompanyName)
             .Select(a => new
             {
@@ -203,15 +228,12 @@ public class DashboardService(
             })
             .OrderByDescending(x => x.Count)
             .Take(5)
-            .ToDictionaryAsync(
-                x => x.CompanyName,
-                x => x.Count);
+            .ToDictionary(x => x.CompanyName, x => x.Count);
     }
 
-    private async Task<Dictionary<string, int>> GetApplicationsTopLocationsAsync()
+    private Dictionary<string, int> GetApplicationsTopLocations(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .GroupBy(a => a.Location)
             .Select(a => new
             {
@@ -220,27 +242,23 @@ public class DashboardService(
             })
             .OrderByDescending(x => x.Count)
             .Take(5)
-            .ToDictionaryAsync(
-                x => x.Location,
-                x => x.Count);
+            .ToDictionary(x => x.Location, x => x.Count);
     }
 
-    private async Task<Dictionary<string, DateTime>> GetApplicationsUpcomingActionsAsync()
+    private Dictionary<string, DateTime> GetApplicationsUpcomingActions(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .Where(a => a.NextActionDate.HasValue)
             .OrderByDescending(a => a.NextActionDate!.Value)
             .Take(5)
-            .ToDictionaryAsync(
+            .ToDictionary(
                 x => x.NextAction.Humanize(),
                 x => x.NextActionDate!.Value);
     }
 
-    private async Task<List<RecentApplication>> GetRecentApplicationsAsync()
+    private List<RecentApplication> GetRecentApplications(List<Application> applications)
     {
-        var applications = GetAll();
-        return await applications
+        return applications
             .OrderByDescending(a => a.ApplicationDate)
             .Take(5)
             .Select(a => new RecentApplication
@@ -251,6 +269,6 @@ public class DashboardService(
                 JobTitle = a.JobTitle,
                 Status = a.Status.Humanize()
             })
-            .ToListAsync();
+            .ToList();
     }
 }
